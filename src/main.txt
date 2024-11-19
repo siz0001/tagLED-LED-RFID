@@ -1,0 +1,65 @@
+#include <Arduino.h>
+#include <PN5180ISO15693.h>
+
+// 핀 설정
+const byte nssPin = 5;
+const byte busyPin = 16;
+const byte resetPin = 17;
+
+// PN5180 객체 생성
+PN5180ISO15693 nfc(nssPin, busyPin, resetPin);
+
+void setup() {
+  // 시리얼 통신 초기화
+  Serial.begin(115200);
+
+  // 초기화 메시지
+  Serial.println("리더 초기화 중...");
+  
+  // NFC 리더 초기화
+  nfc.begin();
+  
+  // NFC 리더 리셋
+  Serial.println("리더 리셋 중...");
+  nfc.reset();
+  
+  // NFC 필드 활성화 메시지
+  Serial.println("NFC 필드 활성화 중...");
+
+  // 제품 버전 확인
+  uint8_t productVersion[2];
+  nfc.readEEprom(PRODUCT_VERSION, productVersion, sizeof(productVersion));
+  if (0xff == productVersion[1]) { // 초기화 실패 확인
+    Serial.println(F("리더 초기화 실패!"));
+    Serial.println(F("다시 시도하려면 리셋을 누르세요..."));
+    Serial.flush();
+    exit(-1); // 실행 중지
+  }
+
+  // 준비 완료 메시지
+  Serial.println("사용 준비 완료...");
+  
+  // NFC 리더 RF 필드 설정
+  nfc.setupRF();
+}
+
+void loop() {
+  // 태그 감지
+  uint8_t uid[8];
+
+  // 인벤토리 읽기 시도 (태그 ID)
+  ISO15693ErrorCode rc = nfc.getInventory(uid);
+  
+  // 읽기 성공 시
+  if (rc == ISO15693_EC_OK) {
+    Serial.print(F("NFC 디바이스 감지됨... ID: "));
+    for (int j = 0; j < sizeof(uid); j++) {
+      Serial.print(uid[j], HEX);
+      Serial.print(" ");
+    }
+    Serial.println();
+  }
+
+  // 다음 읽기 전 1초 지연
+  // delay(1000);
+}
